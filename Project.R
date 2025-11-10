@@ -19,7 +19,8 @@ df_clean <- df %>%
     gdp = `GDP...`,
     gdp_growth = `GDP.Growth.rate`,
     co2_emissions = `CO2.emission.in.tons.`,
-    temp_change = `Temperature.change.from.CO2`
+    temp_change = `Temperature.change.from.CO2`,
+    population = `Population`
   )
 
 # Define key events and periods
@@ -128,6 +129,7 @@ plot_trend_r(df_clean,
              title = "India's Temperature Change Trend", 
              y_label = "Temperature Change (°C)")
 
+#------------------------------------------------------------------------------
 
 # --- B. Correlation Analysis ---
 
@@ -161,7 +163,7 @@ print(paste("Correlation (GDP Growth and CO2):", round(growth_co2_corr, 3)))
 co2_temp_corr <- corr_matrix["co2_emissions", "temp_change"]
 print(paste("Correlation (CO2 and Temp Change):", round(co2_temp_corr, 3)))
 
-
+#-------------------------------------------------------------------------------
 
 # --- C. Regression Analysis ---
 
@@ -201,6 +203,65 @@ model2_r <- lm(co2_emissions ~ gdp + gdp_growth + temp_change, data = df_model_r
 print(summary(model2_r))
 print("Coefficients for Model 2:")
 print(coef(model2_r))
+
+
+
+#---------------------------------------------------------------------------------------------------------
+
+# --- E. Change-Point Analysis ---
+
+# Ensure libraries are loaded
+library(dplyr)
+library(tidyr)
+
+# Prepare data:
+# We need the 'df_clean' data frame from our first step.
+# Make sure it's available in your R session.
+df_chow <- df_clean %>%
+  drop_na(gdp, co2_emissions, Year)
+
+# 1. Define the breakpoint and create the dummy variable
+breakpoint_year <- 2010
+df_chow <- df_chow %>%
+  mutate(
+    post_2010 = ifelse(Year >= breakpoint_year, 1, 0)
+  )
+
+# 2. Create the interaction term
+# In R's lm(), you can create this automatically in the formula
+# The syntax `gdp * post_2010` includes:
+#   1. gdp (β₁)
+#   2. post_2010 (β₂)
+#   3. gdp:post_2010 (the interaction term, β₃)
+
+print("--- Change-Point Analysis (Chow Test equivalent) ---")
+print("Testing for a structural break post-2010.")
+
+# 3. Run the regression model
+# We use `gdp * post_2010` as a shortcut
+chow_model <- lm(co2_emissions ~ gdp * post_2010, data = df_chow)
+
+# 4. Print and interpret the results
+print(summary(chow_model))
+
+# --- Interpretation ---
+print("--- Interpretation of Results ---")
+print("Check the p-value (Pr(>|t|)) for the 'gdp:post_2010' term.")
+print("If p-value < 0.05, the change is significant.")
+
+# You can get the coefficients directly:
+coefs <- coef(chow_model)
+slope_before_2010 <- coefs["gdp"]
+slope_interaction <- coefs["gdp:post_2010"]
+slope_after_2010 <- slope_before_2010 + slope_interaction
+
+print(paste("Slope before 2010 (GDP effect):", slope_before_2010))
+print(paste("Slope after 2010 (GDP effect):", slope_after_2010))
+
+
+#---------------------------------------------------------------------------------------------------------
+
+
 
 
 
